@@ -189,7 +189,7 @@ ol.qs{list-style:none;padding:0;margin:10px 0;display:grid;gap:12px}
 @media print{.top,.picker,.noprint,#app>article:not(.qcard),#results,.foot{display:none!important}.card{box-shadow:none;border:0}body{background:#fff}}
 
 .adapt{display:flex;flex-wrap:wrap;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}.adapt .lvl{display:grid;gap:2px;padding:8px 14px;border-radius:10px;min-width:230px}.adapt .lvl b{font-size:15px}.adapt .lvl span{font-size:12.5px}.lvl1{background:#E7F3EA;color:#1D5B2E}.lvl2{background:#FFF4D6;color:#6B4A00}.lvl3{background:#FBE4E1;color:#7A1F14}.ainfo{display:grid;gap:4px;flex:1;min-width:240px}.streak{display:flex;gap:6px}.dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--gold);display:inline-block}.dot.on{background:var(--gold)}.abtns{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}.adapt .pk.gen{font-size:14px;padding:10px 18px}.adapt .pk#hist{font-size:14px;padding:10px 16px}.msg.review{display:grid;gap:8px}.msg.review .pk.gen{margin-left:0}.pk.rvb{padding:4px 10px;font-size:12px}
-.welcome h2{margin-bottom:4px}.wfields{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;margin:10px 0}.wfields .f{display:grid;gap:4px}.wfields input{width:100%;padding:10px 12px;font-size:15px}@media (max-width:700px){.wfields{grid-template-columns:1fr}}.who{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:14px}.who .wn{margin-right:auto}.who.lect{background:#FFF4D6}.who.lect .lv{display:flex;gap:6px;margin:0 auto}
+.welcome h2{margin-bottom:4px}.wfields{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;margin:10px 0}.wfields .f{display:grid;gap:4px}.wfields input{width:100%;padding:10px 12px;font-size:15px}@media (max-width:700px){.wfields{grid-template-columns:1fr}}.who{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:14px}.who .wn{margin-right:auto}a.pk.guide{text-decoration:none;display:inline-flex;align-items:center}a.inl.guide{font-weight:700;color:var(--navy)}.who.lect{background:#FFF4D6}.who.lect .lv{display:flex;gap:6px;margin:0 auto}
 .ctabs .tab{font-size:16px}.stabs{border-bottom:1px solid var(--line);margin-top:-6px}.stabs .tab{font-size:13px;padding:7px 12px}
 /* ---- scenario documents ---- */
 .doc{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:10px 0;background:var(--surface)}
@@ -2583,6 +2583,8 @@ function wire() {
 }
 
 /* ---------------- student sign-in (required before practice) ---------------- */
+const GUIDE_URL = 'https://fahmirahim0.github.io/fin549/guide.pdf';
+const guideLink = (cls) => `<a class="${cls || 'pk'} guide" href="${GUIDE_URL}" target="_blank" rel="noopener">User guide (PDF)</a>`;
 const ID_OK = (v) => /^\d{10}$/.test(String(v || '').trim());
 const signedIn = () => !!(String(STUDENT.name || '').trim().length >= 3 && ID_OK(STUDENT.id) && String(STUDENT.group || '').trim());
 function saveStudent() { try { localStorage.setItem('fin549-tut-student', JSON.stringify(STUDENT)); } catch (e) {} }
@@ -2598,7 +2600,7 @@ function welcomeHTML(edit) {
   const v = (k) => esc(STUDENT[k] || '');
   return `<article class="card welcome"><div class="eyebrow">${edit ? 'Edit my details' : 'Before you start'}</div>
   <h2>${edit ? 'Update your details' : 'Welcome to the FIN549 Tutorial Lab Mini'}</h2>
-  ${edit ? '' : '<p class="lbl plain">Fill in your details first. They go on every question PDF and on the results file you submit to your lecturer.</p>'}
+  ${edit ? '' : `<p class="lbl plain">Fill in your details first. They go on every question PDF and on the results file you submit to your lecturer. New here? Read the ${guideLink('inl')} first.</p>`}
   <div class="wfields">
     <div class="f"><label for="w-name">Full name</label><input id="w-name" value="${v('name')}" autocomplete="name" placeholder="As in your student card"></div>
     <div class="f"><label for="w-id">Student ID (10 digits)</label><input id="w-id" value="${v('id')}" inputmode="numeric" maxlength="10" placeholder="2025123456"></div>
@@ -2636,8 +2638,8 @@ function lecturerNext() {
   load(0, s);
 }
 function whoBar() {
-  if (ST.lecturer) return `<div class="who lect"><b>Lecturer mode</b><span>Nothing is marked or recorded.</span><span class="lv">${[1, 2, 3].map((l) => `<button type="button" class="pk" data-lv="${l}" aria-pressed="${(ST.lvlL || 1) === l}">Level ${l}</button>`).join('')}</span><button type="button" class="pk" id="lect-exit">Exit lecturer mode</button></div>`;
-  return `<div class="who"><span class="wn"><b>${esc(STUDENT.name)}</b> · ${esc(STUDENT.id)} · ${esc(STUDENT.group)}</span><button type="button" class="pk" id="who-edit">Edit</button><button type="button" class="pk" id="who-new">Not you? Start as a new student</button><span class="lbl plain" id="who-msg" aria-live="polite"></span></div>`;
+  if (ST.lecturer) return `<div class="who lect"><b>Lecturer mode</b><span>Nothing is marked or recorded.</span><span class="lv">${[1, 2, 3].map((l) => `<button type="button" class="pk" data-lv="${l}" aria-pressed="${(ST.lvlL || 1) === l}">Level ${l}</button>`).join('')}</span>${guideLink()}<button type="button" class="pk" id="lect-exit">Exit lecturer mode</button></div>`;
+  return `<div class="who"><span class="wn"><b>${esc(STUDENT.name)}</b> · ${esc(STUDENT.id)} · ${esc(STUDENT.group)}</span>${guideLink()}<button type="button" class="pk" id="who-edit">Edit</button><button type="button" class="pk" id="who-new">Not you? Start as a new student</button><span class="lbl plain" id="who-msg" aria-live="polite"></span></div>`;
 }
 function wireWho() {
   if (ST.lecturer) {
