@@ -189,7 +189,7 @@ ol.qs{list-style:none;padding:0;margin:10px 0;display:grid;gap:12px}
 @media print{.top,.picker,.noprint,#app>article:not(.qcard),#results,.foot{display:none!important}.card{box-shadow:none;border:0}body{background:#fff}}
 
 .adapt{display:flex;flex-wrap:wrap;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}.adapt .lvl{display:grid;gap:2px;padding:8px 14px;border-radius:10px;min-width:230px}.adapt .lvl b{font-size:15px}.adapt .lvl span{font-size:12.5px}.lvl1{background:#E7F3EA;color:#1D5B2E}.lvl2{background:#FFF4D6;color:#6B4A00}.lvl3{background:#FBE4E1;color:#7A1F14}.ainfo{display:grid;gap:4px;flex:1;min-width:240px}.streak{display:flex;gap:6px}.dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--gold);display:inline-block}.dot.on{background:var(--gold)}.abtns{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}.adapt .pk.gen{font-size:14px;padding:10px 18px}.adapt .pk#hist{font-size:14px;padding:10px 16px}.msg.review{display:grid;gap:8px}.msg.review .pk.gen{margin-left:0}.pk.rvb{padding:4px 10px;font-size:12px}
-.welcome h2{margin-bottom:4px}.wfields{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;margin:10px 0}.wfields .f{display:grid;gap:4px}.wfields input{width:100%;padding:10px 12px;font-size:15px}@media (max-width:700px){.wfields{grid-template-columns:1fr}}.who{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:14px}.who .wn{margin-right:auto}a.pk.guide{text-decoration:none;display:inline-flex;align-items:center}a.inl.guide{font-weight:700;color:var(--navy)}.who.lect{background:#FFF4D6}.who.lect .lv{display:flex;gap:6px;margin:0 auto}
+.welcome h2{margin-bottom:4px}.wfields{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;margin:10px 0}.wfields .f{display:grid;gap:4px}.wfields input{width:100%;padding:10px 12px;font-size:15px}@media (max-width:700px){.wfields{grid-template-columns:1fr}}.who{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:14px}.who .wn{margin-right:auto}details.why{margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:#FBFAF6}details.why summary{cursor:pointer;font-weight:700;color:var(--navy)}details.why ul{margin:6px 0 2px 18px;padding:0}details.why li{margin:3px 0}.aicard .row{flex-wrap:wrap}.aicard a.btn{text-decoration:none;color:var(--ink)}a.pk.guide{text-decoration:none;display:inline-flex;align-items:center}a.inl.guide{font-weight:700;color:var(--navy)}.who.lect{background:#FFF4D6}.who.lect .lv{display:flex;gap:6px;margin:0 auto}
 .ctabs .tab{font-size:16px}.stabs{border-bottom:1px solid var(--line);margin-top:-6px}.stabs .tab{font-size:13px;padding:7px 12px}
 /* ---- scenario documents ---- */
 .doc{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:10px 0;background:var(--surface)}
@@ -1982,6 +1982,7 @@ function renderAnswers(B) {
     h += `<li class="q ${showMarks ? (ok ? 'is-ok' : got ? 'is-part' : 'is-no') : ''}"><div class="qh"><span class="qn">${q.n}</span><span class="ql">${esc(q.label)}</span>${showMarks ? `<span class="mark ${ok ? 'ok' : 'no'}">${markTxt}</span>` : ''}</div>${inputFor(q, B)}`;
     if (ST.phase === 'retry' && !ok) h += `<div class="hint"><b>Hint:</b> ${esc(q.hint)}</div>`;
     if (ST.phase === 'done' && !ok) h += `<div class="ans"><b>Correct answer:</b> ${esc(correctText(q, B))}</div>`;
+    if (!ok) h += diagBlock(q, B);
     h += '</li>';
   });
   h += '</ol>';
@@ -2507,7 +2508,7 @@ function openReview(i) {
   load(0, s);
   ST.review = i;
   if (r.ans) {
-    ST.ans = Object.assign({}, r.ans); ST.first = grade(); ST.second = null; ST.phase = 'done';
+    ST.ans = Object.assign({}, r.ans); ST.firstAns = Object.assign({}, r.ans); ST.secondAns = null; ST.first = grade(); ST.second = null; ST.phase = 'done';
     if (r.ans2) { const keep = ST.ans; ST.ans = Object.assign({}, r.ans2); ST.second2 = grade(); ST.ans = keep; } else ST.second2 = null;
   }
   render(); window.scrollTo(0, 0);
@@ -2666,9 +2667,146 @@ function render() {
   if (res) res.style.display = ST.lecturer ? 'none' : '';
   const B = ST.B;
   $('#hdr-topic').textContent = `${T().tab} · ${T().method}`;
-  $('#app').innerHTML = whoBar() + renderTabs() + (ST.lecturer ? '' : renderPicker() + moveMsg()) + renderQuestion(B) + renderAnswers(B) + renderWorking(B);
-  wire(); wireWho();
+  $('#app').innerHTML = whoBar() + renderTabs() + (ST.lecturer ? '' : renderPicker() + moveMsg()) + renderQuestion(B) + renderAnswers(B) + aiCard(B) + renderWorking(B);
+  wire(); wireWho(); wireAI(B);
   if (!ST.lecturer) renderResults();
+}
+
+/* ---------------- "Why was I wrong?" diagnostics (no AI, works offline) ---------------- */
+function attemptAns() {
+  if (ST.review !== null && ST.review !== undefined) return ST.ans;
+  if (ST.phase === 'done' && ST.second) return ST.secondAns || ST.ans;
+  return ST.firstAns || ST.ans;
+}
+const near = (x, y, tol) => x !== null && y !== null && Math.abs(x - y) <= (tol === undefined ? Math.max(1, Math.abs(y) * 0.00001) : tol);
+const fmtV = (q, v) => (q.unit === '%' ? E.num(v) + '%' : q.unit === 'RM' || q.unit === 'RM per tonne' ? RM(v) : E.num(v));
+function numberClues(q, v, k, B, reveal) {
+  const out = [], tol = Math.max(q.tol || 0, 0.01);
+  if (v === null) return ['The figure could not be read as a number. Type digits only, for example 12500 or 12,500.'];
+  if (k !== 0 && near(v, -k, tol)) out.push('Your figure has the right size but the wrong sign. Check whether this is a gain or a loss for this position.');
+  if (k !== 0 && !out.length) {
+    const ratio = v / k;
+    for (const f of [10, 100, 1000, 0.1, 0.01, 0.001]) if (Math.abs(ratio - f) < f * 0.002) { out.push(f === 100 || f === 0.01 ? 'Your figure is 100 times off. Check percentage versus decimal (5% is 0.05), or the contract size or tick value.' : 'Your figure is off by a factor of ' + (f >= 1 ? f : 1 / f) + '. Check the decimal place, the contract size or the tick value.'); break; }
+  }
+  const nf = (B.res && B.res.result && B.res.result.nf) || B.s.nf || (typeof B.key.q2 === 'number' && /contract/i.test(T().Q.find((x) => x.id === 'q2').label) ? B.key.q2 : 0);
+  const bc = +B.s.bc || 0;
+  if (!out.length && bc && nf) for (const m of [1, 2]) if (near(Math.abs(v - k), bc * nf * m, 1)) { out.push(`The difference from the answer equals the brokerage commission (RM ${E.num(bc)} × ${E.num(nf)} contracts${m === 2 ? ' × 2' : ''}). Check whether you deducted the commission, or deducted it twice.`); break; }
+  if (!out.length && /contract/i.test(q.label) && Math.abs(v - k) === 1) out.push('You are one contract away. The number of futures contracts is always rounded DOWN to a whole number.');
+  if (!out.length) {
+    const others = T().Q.filter((x) => x.id !== q.id && (x.type === 'num' || x.type === 'dirval'));
+    for (const o of others) { const ok = o.type === 'num' ? B.key[o.id] : B.key[o.id].v; if (near(v, ok, Math.max(o.tol || 0, 0.01))) { out.push(`You entered the figure for Question ${o.n} (${o.label}). This box asks for something else: ${q.label}.`); break; } }
+  }
+  if (!out.length && k !== 0 && Math.abs(v - k) / Math.abs(k) < 0.005) out.push('You are very close. This is usually rounding too early: keep full figures in the middle steps and round only the final answer.');
+  if (!out.length) out.push('The figure is not close to the answer. Go back to the formula for this step and check each input you used: the right price, the right date and the right quantity.');
+  if (reveal) out.push(`You typed ${fmtV(q, v)}; the answer is ${fmtV(q, k)}.`);
+  return out;
+}
+function mcqClue(chosen, correct, reveal) {
+  const W = (s) => String(s).split(/\s+/), a = W(chosen), b = W(correct);
+  const diff = a.filter((w) => !b.includes(w)).concat(b.filter((w) => !a.includes(w)));
+  const has = (re) => diff.some((w) => re.test(w));
+  const out = [];
+  if (/no transaction/i.test(chosen) !== /no transaction/i.test(correct)) out.push(/no transaction/i.test(correct) ? 'There should be no transaction here. Check whether this strategy is actually carried out (for example, reverse cash and carry needs short selling, which is treated as impractical).' : 'A transaction is needed here. Look at what the strategy does in this market at this point in time.');
+  else if (has(/^(buy|sell|bought|sold|long|short|lend|borrow|deposit|open|close)/i)) out.push('You reversed the direction of the trade (buy versus sell, lend versus borrow). Ask what the strategy needs: which way must this leg move to protect or earn money?');
+  else if (has(/^(January|February|March|April|May|June|July|August|September|October|November|December)/)) out.push('The contract month is wrong. Use the futures month that matches the timing of the deal in the question.');
+  else if (has(/\d/)) out.push('The trade direction is right but a figure is wrong: check the number of contracts, and whether the price belongs to the right date (today or later) and the right market (spot or futures).');
+  else out.push('Compare the wording of the options carefully: only one matches what happens in this market at this time.');
+  if (reveal) out.push('Correct option: ' + correct);
+  return out;
+}
+function mtmClue(a, B, reveal) {
+  const key = B.key.mtm, s = B.s, r = B.res.result, out = [];
+  let first = null, count = 0;
+  for (let t = 0; t <= B.n; t++) for (const c of MTM_COLS) { if (t < c.from) continue; if (!cellOK(c, t, a, B)) { count++; if (!first) first = { c, t }; } }
+  if (!first) return out;
+  const { c, t } = first, v = numIn(a['mtm_' + c.k + '_' + t]), k = key[c.k][t], R = (x) => E.num(x);
+  out.push(`${count} cell${count > 1 ? 's are' : ' is'} wrong. The first one is ${c.label} on Day ${t}${count > 1 ? '; later cells often go wrong because they carry this error forward' : ''}.`);
+  if (c.k === 'vm' && t === 0) out.push('VM on Day 0 is simply the total initial margin (TIM) you deposit.' + (reveal ? ` TIM = RM ${R(r.TIM)}.` : ''));
+  else if (c.k === 'dpl') {
+    if (v !== null && k !== 0 && near(v, -k, 1)) out.push(`The size is right but the sign is wrong. You are a ${s.dir === 'buy' ? 'buyer (long): a price rise is a gain' : 'seller (short): a price fall is a gain'}.`);
+    out.push(`DPL Day ${t} = change in the settlement price from Day ${t - 1} (${R(s.prices[t - 1])}) to Day ${t} (${R(s.prices[t])}) × value per point × number of contracts, with the sign for your position.` + (reveal ? ` DPL = RM ${R(k)}.` : ''));
+  } else if (c.k === 'bm') out.push(`BM Day ${t} = VM Day ${t - 1} + DPL Day ${t}.` + (reveal ? ` = ${R(key.vm[t - 1])} + (${R(key.dpl[t])}) = ${R(k)}.` : ''));
+  else if (c.k === 'cm') out.push(`A margin call happens only when BM falls below the total maintenance margin (TMM). Then CM = TIM − BM, which tops the account back up to the initial margin; otherwise CM = 0.` + (reveal ? ` Here BM = ${R(key.bm[t])}, TMM = ${R(r.TMM)}, so CM = ${R(k)}.` : ''));
+  else if (c.k === 'vm') out.push(`VM Day ${t} = BM Day ${t} + CM Day ${t}.` + (reveal ? ` = ${R(key.bm[t])} + ${R(key.cm[t])} = ${R(k)}.` : ''));
+  return out;
+}
+function diagnose(q, a, B, reveal) {
+  const k = B.key[q.id];
+  if (q.type === 'choice') {
+    const pick = q.opts.find((o) => o[0] === a[q.id]), right = q.opts.find((o) => o[0] === k);
+    return [`You chose “${pick ? pick[1] : 'nothing'}”. ${q.hint}`].concat(reveal && right ? ['The correct choice is ' + right[1] + '.'] : []);
+  }
+  if (q.type === 'mcq') { const o = B.mcqs[q.id].opts; return a[q.id] === undefined ? ['No option was chosen.'] : mcqClue(o[a[q.id]], o[k], reveal); }
+  if (q.type === 'num') return numberClues(q, numIn(a[q.id]), k, B, reveal);
+  if (q.type === 'dirval') {
+    const v = numIn(a[q.id + 'v']), dirOK = a[q.id + 'd'] === k.d, valOK = v !== null && Math.abs(v - k.v) <= q.tol;
+    const dl = (d) => (q.dirs.find((x) => x[0] === d) || [d, d])[1];
+    if (valOK && !dirOK) return [`The amount is right but the direction is wrong: you chose “${dl(a[q.id + 'd'])}”. ${q.hint}`].concat(reveal ? ['Correct: ' + dl(k.d) + '.'] : []);
+    const out = numberClues(q, v, k.v, B, reveal);
+    if (!dirOK) out.unshift(`The direction is also wrong: it should not be “${dl(a[q.id + 'd'])}”.`);
+    return out;
+  }
+  if (q.type === 'mtm') return mtmClue(a, B, reveal);
+  return [];
+}
+function diagBlock(q, B) {
+  if (ST.phase === 'ans') return '';
+  const reveal = ST.phase === 'done';
+  let items = [];
+  try { items = diagnose(q, attemptAns(), B, reveal); } catch (e) { items = []; }
+  if (!items.length) return '';
+  return `<details class="why"><summary>Why was I wrong?</summary><ul>${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>${reveal ? '' : '<p class="lbl plain">The correct figures are shown after your second try.</p>'}</details>`;
+}
+
+/* ---------------- "Discuss with a free AI tutor": copy a ready prompt (no data is sent by the app) ---------------- */
+function ansText(q, a, B) {
+  if (q.type === 'choice') { const o = q.opts.find((x) => x[0] === a[q.id]); return o ? o[1] : '(no answer)'; }
+  if (q.type === 'mcq') return a[q.id] === undefined ? '(no answer)' : 'ABCD'[a[q.id]] + '. ' + B.mcqs[q.id].opts[a[q.id]];
+  if (q.type === 'num') return (a[q.id] || '(blank)') + (q.unit ? ' ' + q.unit : '');
+  if (q.type === 'dirval') { const d = q.dirs.find((x) => x[0] === a[q.id + 'd']); return (d ? d[1] : '(no direction)') + ', ' + (a[q.id + 'v'] || '(blank)'); }
+  if (q.type === 'mtm') { const rows = []; for (let t = 0; t <= B.n; t++) rows.push(`Day ${t}: ` + MTM_COLS.filter((c) => t >= c.from).map((c) => `${c.label} ${a['mtm_' + c.k + '_' + t] || '-'}${cellOK(c, t, a, B) ? '' : ' (wrong)'}`).join(', ')); return '\n    ' + rows.join('\n    '); }
+  return '';
+}
+function aiPrompt(B) {
+  const a = attemptAns(), Q = T().Q, card = $('#qcard');
+  const qtext = card ? card.innerText.replace(/Download question \(PDF\)|Print question|Making the PDF\.\.\.|PDF downloaded\..*$/gm, '').replace(/\n{3,}/g, '\n\n').trim() : '';
+  const marks = {}; Q.forEach((q) => (marks[q.id] = judgeQ(q, a, B)));
+  const lines = Q.map((q) => { const ok = marks[q.id] === fullMarks(q); return `Q${q.n}. ${q.label}\n  My answer: ${ansText(q, a, B)}\n  Correct answer: ${q.type === 'mtm' ? 'see the marked-to-market table in the worked answer' : correctText(q, B)}\n  Result: ${ok ? 'correct' : 'WRONG'}${q.type === 'mtm' ? ` (${marks[q.id]} of 4 columns right)` : ''}`; });
+  const wrong = Q.filter((q) => marks[q.id] !== fullMarks(q)).map((q) => 'Q' + q.n);
+  const work = (B.res.steps || []).map((s) => [s.title].concat(s.lines || [], s.table ? [s.table.head.join(' | ')].concat(s.table.rows.map((r) => r.join(' | '))) : [], s.note ? ['Note: ' + s.note] : []).join('\n')).join('\n\n');
+  return `You are a patient tutor for FIN549 Derivatives Markets and Applications (Malaysian futures: FCPO, FKLI, FKLM, FKB3, FMG5, SSF), taught at UiTM.
+I practised the tutorial question below. The WORKED ANSWER at the end was produced by the course calculation engine and is correct: treat it as the ground truth and do not work out a different answer.
+Please help me understand why my wrong answers are wrong, one question at a time. Explain the idea behind each step, not just the arithmetic, and ask me short questions to check that I understand. Do not just give me the final answers. Reply in the language I write in (Bahasa Melayu or English).
+
+=== QUESTION (${T().code}${B.s.id}) ===
+${qtext}
+
+=== MY ANSWERS ===
+${lines.join('\n')}
+
+=== WORKED ANSWER (correct) ===
+${work}
+
+Start by asking me which of ${wrong.length ? wrong.join(', ') : 'the questions'} I want to discuss first.`;
+}
+function aiCard(B) {
+  if (ST.phase !== 'done') return '';
+  return `<article class="card noprint aicard"><div class="eyebrow">Still not sure why?</div><h2>Discuss this question with a free AI tutor</h2>
+  <p class="lbl plain">Press <b>Copy for AI tutor</b>. The app copies the question, your answers, the correct answers and the full worked answer. Then open any free AI chat below, paste (Ctrl+V or Cmd+V, or long-press then Paste on a phone) and ask why you got it wrong. Your name and student ID are not included, and the app itself sends nothing anywhere.</p>
+  <div class="row"><button type="button" class="btn primary" id="ai-copy">Copy for AI tutor</button>
+  <a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">Open ChatGPT</a><a class="btn" href="https://gemini.google.com/" target="_blank" rel="noopener">Open Gemini</a><a class="btn" href="https://copilot.microsoft.com/" target="_blank" rel="noopener">Open Copilot</a><a class="btn" href="https://claude.ai/new" target="_blank" rel="noopener">Open Claude</a>
+  <span class="lbl plain" id="ai-msg" aria-live="polite"></span></div>
+  <textarea id="ai-text" rows="3" readonly hidden style="width:100%;font:12px monospace"></textarea>
+  <p class="lbl plain">All four have a free version. An AI can still make mistakes: if it disagrees with the worked answer, trust the worked answer and ask your lecturer.</p></article>`;
+}
+function wireAI(B) {
+  const b = $('#ai-copy'); if (!b) return;
+  b.addEventListener('click', async () => {
+    const txt = aiPrompt(B), ta = $('#ai-text'); let ok = false;
+    try { await navigator.clipboard.writeText(txt); ok = true; } catch (e) { ta.hidden = false; ta.value = txt; try { ta.focus(); ta.select(); ok = document.execCommand('copy'); } catch (e2) {} }
+    $('#ai-msg').textContent = ok ? 'Copied. Now open an AI chat and paste.' : 'Copy was blocked: select all the text in the box below and copy it yourself.';
+    if (!ok) { ta.hidden = false; ta.value = txt; }
+  });
 }
 
 const _renderResults = renderResults;
