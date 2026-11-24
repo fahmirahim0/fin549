@@ -2128,7 +2128,7 @@ const IMQ = [
   { id: 'q2', n: 2, label: 'Contract value of the foreign index futures (in its own currency)', type: 'num', unit: 'foreign currency', tol: 1, hint: 'Contract value = current futures price × size of contract.' },
   { id: 'q3', n: 3, label: 'Contract value of the foreign index futures in RM', type: 'num', unit: 'RM', tol: TOL_RM, hint: 'Convert into a single currency: contract value in foreign currency × exchange rate (RM per 1 unit of the foreign currency).' },
   { id: 'q4', n: 4, label: 'Contract value of FKLI', type: 'num', unit: 'RM', tol: TOL_RM, hint: 'FKLI contract value = current FKLI price × RM 50.' },
-  { id: 'q5', n: 5, label: 'Spread ratio: number of FKLI contracts for 1 foreign contract', type: 'num', unit: 'contracts', tol: 0, hint: 'Spread ratio = higher contract value ÷ lower contract value (both in RM). Contracts must be whole numbers.' },
+  { id: 'q5', n: 5, label: 'Spread ratio: number of FKLI contracts for 1 foreign contract', type: 'num', unit: 'contracts', tol: 0, hint: 'Spread ratio = higher contract value ÷ lower contract value (both in RM), always rounded DOWN to a whole number (for example 35.9 becomes 35).' },
   { id: 'q6a', n: '6a', label: 'Spread table: FOREIGN futures TODAY', type: 'mcq', marks: 0.5, hint: 'Open the foreign position: buy it if it is expected to outperform, sell it if it is expected to underperform. 1 contract, at today’s price.' },
   { id: 'q6b', n: '6b', label: 'Spread table: FKLI TODAY', type: 'mcq', marks: 0.5, hint: 'Open the FKLI position in the opposite direction, using the spread ratio for the number of contracts, at today’s FKLI price.' },
   { id: 'q6c', n: '6c', label: 'Spread table: FOREIGN futures LATER', type: 'mcq', marks: 0.5, hint: 'Close the foreign position with the opposite trade, same number of contracts, at the later price.' },
@@ -2169,7 +2169,7 @@ function buildInter(s) {
     { title: 'Step 1: Identify the inter-market spread strategy', lines: [`Expected to outperform: ${x.buyF ? m.short : 'FKLI'}. Expected to underperform: ${x.buyF ? 'FKLI' : m.short}.`, 'Buy the outperformed futures; sell the underperformed futures (same contract month, different markets).', `Strategy: ${x.buyF ? `Buy ${m.short}, sell FKLI` : `Buy FKLI, sell ${m.short}`}.`] },
     { title: 'Step 2: Calculate the contract value of both contracts', lines: [`Contract value ${m.short} = current futures price × size of contract`, `= ${N(s.f0F)} × ${m.size}`, `= ${m.ccy} ${N(x.valF)}`, 'Contract value FKLI = current futures price × size of contract', `= ${N(s.f0K)} × 50`, `= RM ${N(x.valK)}`] },
     { title: 'Step 3: Convert into a single currency (RM)', lines: [`Exchange rate: ${fx}`, `Contract value ${m.short} = ${m.ccy} ${N(x.valF)} × ${s.fx.toFixed(m.fxd)}`, `= RM ${N(x.valFRM)}`] },
-    { title: 'Step 4: Calculate the spread ratio', lines: [`Higher contract value: ${m.short} = RM ${N(x.valFRM)}`, `Lower contract value: FKLI = RM ${N(x.valK)}`, 'Spread ratio = higher futures contract value ÷ lower futures contract value', `= ${N(x.valFRM)} ÷ ${N(x.valK)}`, `= ${x.ratio.toFixed(2)} ≈ ${x.nK} contracts`, `So 1 ${m.short} contract against ${x.nK} FKLI contracts.`] },
+    { title: 'Step 4: Calculate the spread ratio', lines: [`Higher contract value: ${m.short} = RM ${N(x.valFRM)}`, `Lower contract value: FKLI = RM ${N(x.valK)}`, 'Spread ratio = higher futures contract value ÷ lower futures contract value', `= ${N(x.valFRM)} ÷ ${N(x.valK)}`, `= ${x.ratio.toFixed(2)}, rounded down = ${x.nK} contracts`, `So 1 ${m.short} contract against ${x.nK} FKLI contracts.`] },
     { title: 'Step 5: Spread strategy table', table: { head: ['', m.short, 'FKLI'], rows: [['Today', cells[0], cells[1]], ['Later', cells[2], cells[3]]] } },
     { title: `Step 6: Profit or loss from ${m.short}`, lines: [`= [ ( Selling price − Buying price ) × number of contracts × size of contract ] − total commission`, `= [ ( ${N(x.buyF ? s.f1F : s.f0F)} − ${N(x.buyF ? s.f0F : s.f1F)} ) × 1 × ${m.size} ]${s.bcF ? ` − ${N(s.bcF)} × 1` : ''}`, `= ${m.ccy} ${N(x.plFccy)}`, 'Convert into a single currency', `= ${N(x.plFccy)} × ${s.fx.toFixed(m.fxd)}`, `= RM ${N(x.plF)}`] },
     { title: 'Step 7: Profit or loss from FKLI', lines: [`= [ ( Selling price − Buying price ) × number of contracts × size of contract ] − total commission`, `= [ ( ${N(x.buyF ? s.f0K : s.f1K)} − ${N(x.buyF ? s.f1K : s.f0K)} ) × ${x.nK} × 50 ]${s.bcK ? ` − ${N(s.bcK)} × ${x.nK}` : ''}`, `= RM ${N(x.plK)}`] },
@@ -2192,11 +2192,11 @@ function interCard(B) {
     <p>On <b>${esc(s.today)}</b>, the futures prices are:</p>${tbl(`<tr><td>Price today</td><td class="num">${N(s.f0F)}</td><td class="num">${N(s.f0K)}</td></tr><tr><td>Size of contract</td><td class="num">${m.ccy} ${m.size} per point</td><td class="num">RM 50 per point</td></tr>`, 'Today')}
     <p>Exchange rate: <b>${fx}</b>.</p>
     <p>On <b>${esc(s.later)}</b>, both positions are closed at:</p>${tbl(`<tr><td>Price later</td><td class="num">${N(s.f1F)}</td><td class="num">${N(s.f1K)}</td></tr>`, 'Later')}
-    <p>${comm} Trade 1 contract of the higher-value futures and use the spread ratio for the other.</p>`;
+    <p>${comm} Trade 1 contract of the higher-value futures and use the spread ratio, rounded down, for the other.</p>`;
   } else {
     body = `<h2>Inter-market spreading with FKLI: ${esc(s.trader)}</h2><p class="lbl plain">Read the email below and pick out the information you need. The figures are in the text.</p>
     <div class="doc email"><div class="dh"><b>From:</b> ${esc(s.trader)} &lt;dealer@${esc(s.firmMail)}&gt;<br><b>To:</b> Trading desk<br><b>Subject:</b> ${mon(s)} ${m.short} vs FKLI spread: results</div>
-    <p>Team,</p><p>As discussed, I ${viewTxt.replace('expects', 'expected')} ${esc(s.reason)}, so on ${esc(s.today)} I set up an inter-market spread using the ${mon(s)} contracts: ${m.name} on ${m.ex} was trading at ${N(s.f0F)} (${m.ccy} ${m.size} per index point) and FKLI on Bursa Malaysia Derivatives at ${N(s.f0K)} (RM 50 per point). The exchange rate that day was ${fx}. As usual I traded 1 contract of the higher-value futures and used the spread ratio for the other leg.</p>
+    <p>Team,</p><p>As discussed, I ${viewTxt.replace('expects', 'expected')} ${esc(s.reason)}, so on ${esc(s.today)} I set up an inter-market spread using the ${mon(s)} contracts: ${m.name} on ${m.ex} was trading at ${N(s.f0F)} (${m.ccy} ${m.size} per index point) and FKLI on Bursa Malaysia Derivatives at ${N(s.f0K)} (RM 50 per point). The exchange rate that day was ${fx}. As usual I traded 1 contract of the higher-value futures and used the spread ratio, rounded down, for the other leg.</p>
     <p>On ${esc(s.later)} I closed both legs: ${m.short} was at ${N(s.f1F)} and FKLI at ${N(s.f1K)}. ${(s.bcF || s.bcK) ? `Our brokers charged ${m.ccy} ${N(s.bcF)} per ${m.short} contract and RM ${N(s.bcK)} per FKLI contract, round turn.` : 'There was no brokerage commission on these trades.'}</p>
     <p>Please work out how the spread did, in RM.</p><p>${esc(s.trader)}</p></div>`;
   }
@@ -2220,7 +2220,7 @@ function genInter(g, L) {
   const f0F = E2(Math.round(g.rf(m.p[0], m.p[1]) / m.step) * m.step), f0K = E2(Math.round(g.rf(1450, 1780) * 2) / 2);
   const fx = E2(g.rf(m.fx[0], m.fx[1]));
   const ratio = (f0F * m.size * fx) / (f0K * 50), frac = ratio - Math.floor(ratio);
-  if (frac > 0.45 || ratio < 3 || ratio > 40) return null;
+  if (ratio < 3 || ratio > 40 || frac < 0.02) return null;
   const view = g.R() < 0.5 ? 'F' : 'K', win = L < 3;
   const base = g.rf(-0.04, 0.05), gap = g.rf(0.01, 0.05) * (win ? 1 : -1);
   const rF = view === 'F' ? base + gap / 2 : base - gap / 2, rK = view === 'F' ? base - gap / 2 : base + gap / 2;
